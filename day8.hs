@@ -5,8 +5,10 @@ type Metadata = Int
 data Tree = Leaf [Metadata] | Tree [Child] [Metadata]
   deriving (Show)
 
-process :: String -> Int
-process = sumMetadata . convertToTree . toInts
+-- First in tuple is sum (part 1), second is "value" (part 2)
+process :: String -> (Int, Int)
+process s = (sumMetadata tree, findValue tree)
+  where tree = (convertToTree . toInts) s
 
 toInts :: String -> [Int]
 toInts = (map read) . (splitOn " ")
@@ -45,8 +47,18 @@ sumMetadata :: Tree -> Int
 sumMetadata (Leaf metadata) = sum metadata
 sumMetadata (Tree children metadata) = sum metadata + sum (map sumMetadata children)
 
+findValue :: Tree -> Int
+findValue (Leaf metadata)          = sum metadata
+findValue (Tree children metadata) = sum $ map valueForMetadataIndex metadata
+  where valueForMetadataIndex :: Int -> Int
+        valueForMetadataIndex metadataIndex =
+          if length children < metadataIndex
+          then 0
+          else findValue(children !! (metadataIndex - 1))
+
 main = do
   input <- readFile "input/day8"
-  putStrLn $ show(process input)
+  let (sum, value) = process input
+  putStrLn $ "Sum is " ++ show sum ++ ". Value is " ++ show value
 
 exampleString = "2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2"
