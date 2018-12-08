@@ -8,17 +8,6 @@ type Metadata = Int
 data Tree = Leaf [Metadata] | Tree [Child] [Metadata]
   deriving (Show)
 
--- Takes in the input string of the problem and returns
--- a tuple. First item in the tuple is the answer to the
--- first part of the problem, second item is the answer
--- to the second part of the problem ("value").
-process :: String -> (Int, Int)
-process s = (sumMetadata tree, findValue tree)
-  where tree = (convertToTree . toInts) s
-
-toInts :: String -> [Int]
-toInts = (map read) . (splitOn " ")
-
 convertToTree :: [Int] -> Tree
 convertToTree = fst . convertToTreeAndRest
 
@@ -72,6 +61,17 @@ findValue (Tree children metadata) = sum $ map valueForMetadataIndex metadata
           if length children < metadataIndex
           then 0
           else findValue(children !! (metadataIndex - 1))
+
+-- Takes in the input string of the problem and returns
+-- a tuple. First item in the tuple is the answer to the
+-- first part of the problem, second item is the answer
+-- to the second part of the problem ("value").
+process :: String -> (Int, Int)
+process s = (sumMetadata tree, findValue tree)
+  where tree = (convertToTree . toInts) s
+
+toInts :: String -> [Int]
+toInts = (map read) . (splitOn " ")
 
 main = do
   input <- readFile "input/day8"
