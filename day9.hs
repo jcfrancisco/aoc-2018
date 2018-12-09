@@ -3,7 +3,8 @@ import           Data.List
 type CurrentMarbleIndex = Int
 type Marble = Int
 type PlayerName = String
-data Player = Player PlayerName [Marble] deriving (Show, Eq)
+type PlayerScore = Int
+data Player = Player PlayerName PlayerScore deriving (Show, Eq)
 data MarbleGame =
   MarbleGame
   CurrentMarbleIndex
@@ -40,9 +41,9 @@ add23Marble newMarble playerAddingMarble (MarbleGame currentMarbleIndex marbles 
             ++ (drop (newMarbleIndex + 1) marbles)
           newPlayers =
             map
-            (\player@(Player playerName playerMarbles) ->
+            (\player@(Player playerName playerScore) ->
               if player == playerAddingMarble
-              then Player playerName (marbles !! newMarbleIndex : newMarble : playerMarbles)
+              then Player playerName ((marbles !! newMarbleIndex) + newMarble + playerScore)
               else player
             )
             players
@@ -52,7 +53,7 @@ createMarbleGameWithPlayers :: Int -> MarbleGame
 createMarbleGameWithPlayers n =
   MarbleGame 0 [0] (take n $ map createNewPlayer [1..])
     where createNewPlayer :: Int -> Player
-          createNewPlayer i = Player ("Player " ++ show i) []
+          createNewPlayer i = Player ("Player " ++ show i) 0
 
 getNthMarbleGame :: MarbleGame -> Int -> MarbleGame
 getNthMarbleGame initialMarbleGame n = allMarbleGames initialMarbleGame !! n
@@ -78,7 +79,13 @@ allMarbleGames initialMarbleGame = map snd $ iterate addNextMarble (0, initialMa
 
 getHighScore :: MarbleGame -> Int
 getHighScore (MarbleGame _ _ players) =
-  maximum $ map (\(Player _ marbles) -> sum marbles) players
+  getScore $ maximumBy (
+    \(Player _ score1) (Player _ score2) ->
+      if score1 > score2 then GT
+      else if score2 < score1 then LT
+      else EQ
+  ) players
+    where getScore (Player _ s) = s
 
 -- 418, 71339
 -- pt 2: 418, 7133900
