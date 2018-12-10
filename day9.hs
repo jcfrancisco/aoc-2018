@@ -1,14 +1,17 @@
 import           Data.List
+import qualified Data.Sequence as S
 
 type CurrentMarbleIndex = Int
 type Marble = Int
 type PlayerName = String
 type PlayerScore = Int
-data Player = Player PlayerName PlayerScore deriving (Show, Eq)
+data Player = Player PlayerName PlayerScore deriving (Show)
+instance Eq Player where
+  (Player name1 _) == (Player name2 _) = name1 == name2
 data MarbleGame =
   MarbleGame
   CurrentMarbleIndex
-  [Marble]
+  (S.Seq Marble)
   [Player]
   deriving (Show)
 
@@ -24,9 +27,7 @@ addRegularMarble newMarble _ (MarbleGame currentMarbleIndex marbles players) =
             then length marbles
             else newMarbleIndex
           newMarbleIndex = mod (currentMarbleIndex + 2) (length marbles)
-          newMarbles =
-            (take newMarbleIndexAdjusted marbles)
-            ++ (newMarble : (drop newMarbleIndexAdjusted marbles))
+          newMarbles = S.insertAt newMarbleIndexAdjusted newMarble marbles
 
 add23Marble :: Marble -> Player -> MarbleGame -> MarbleGame
 add23Marble newMarble playerAddingMarble (MarbleGame currentMarbleIndex marbles players) =
@@ -36,22 +37,23 @@ add23Marble newMarble playerAddingMarble (MarbleGame currentMarbleIndex marbles 
             then (length marbles) - (abs sevenCounterClockwise)
             else sevenCounterClockwise
           sevenCounterClockwise = currentMarbleIndex - 7
-          newMarbles =
-            (take newMarbleIndex marbles)
-            ++ (drop (newMarbleIndex + 1) marbles)
+          newMarbles = S.deleteAt newMarbleIndex marbles
           newPlayers =
             map
             (\player@(Player playerName playerScore) ->
+              -- TODO: Optimize Eq for Player
               if player == playerAddingMarble
-              then Player playerName ((marbles !! newMarbleIndex) + newMarble + playerScore)
+              then Player playerName ((fromJust (S.lookup newMarbleIndex marbles)) + newMarble + playerScore)
               else player
             )
             players
+          fromJust (Just a) = a
+          fromJust Nothing  = undefined
 
 -- Initial state of the game
 createMarbleGameWithPlayers :: Int -> MarbleGame
 createMarbleGameWithPlayers n =
-  MarbleGame 0 [0] (take n $ map createNewPlayer [1..])
+  MarbleGame 0 (S.singleton 0) (take n $ map createNewPlayer [1..])
     where createNewPlayer :: Int -> Player
           createNewPlayer i = Player ("Player " ++ show i) 0
 
@@ -70,12 +72,10 @@ allMarbleGames initialMarbleGame = map snd $ iterate addNextMarble (0, initialMa
             lastMarbleAdded + 1,
             addMarble (lastMarbleAdded + 1) (getNextPlayer acc) currentMarbleGame
           )
-        -- On the first marble, it's "Player 1" (players !! 0)
-        -- On the second marble, it's "Player 2" (players !! 1),
-        -- etc
         getNextPlayer :: (Marble, MarbleGame) -> Player
         getNextPlayer (lastMarbleAdded, (MarbleGame _ _ players)) =
           players !! mod lastMarbleAdded (length players)
+          --Player ("Player " ++ show(1 + (mod lastMarbleAdded (length players)))) 0
 
 getHighScore :: MarbleGame -> Int
 getHighScore (MarbleGame _ _ players) =
@@ -91,4 +91,4 @@ getHighScore (MarbleGame _ _ players) =
 -- pt 2: 418, 7133900
 main = do
   let marbleGame = createMarbleGameWithPlayers 418
-  putStrLn $ show $ getHighScore $ getNthMarbleGame marbleGame 71339
+  putStrLn $ show $ getHighScore $ getNthMarbleGame marbleGame 7133900
