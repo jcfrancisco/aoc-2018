@@ -1,94 +1,80 @@
-import           Data.List
+import           Data.List       (maximumBy)
+import qualified Data.Map.Strict as Map
 
-type CurrentMarbleIndex = Int
 type Marble = Int
 type PlayerName = String
 type PlayerScore = Int
-data Player = Player PlayerName PlayerScore deriving (Show, Eq)
+data Player = Player PlayerScore deriving (Show, Eq)
+getPlayerScore (Player s) = s
 data MarbleGame =
   MarbleGame
-  CurrentMarbleIndex
   [Marble]
-  [Player]
+  (Map.Map PlayerName Player)
   deriving (Show)
 
-addMarble :: Marble -> Player -> MarbleGame -> MarbleGame
+addMarble :: Marble -> PlayerName -> MarbleGame -> MarbleGame
 addMarble m =
   if mod m 23 == 0 then add23Marble m else addRegularMarble m
 
-addRegularMarble :: Marble -> Player -> MarbleGame -> MarbleGame
-addRegularMarble newMarble _ (MarbleGame currentMarbleIndex marbles players) =
-  MarbleGame newMarbleIndexAdjusted newMarbles players
-    where newMarbleIndexAdjusted =
-            if newMarbleIndex == 0
-            then length marbles
-            else newMarbleIndex
-          newMarbleIndex = mod (currentMarbleIndex + 2) (length marbles)
-          newMarbles =
-            (take newMarbleIndexAdjusted marbles)
-            ++ (newMarble : (drop newMarbleIndexAdjusted marbles))
+-- `rotate 2` - rotate 2 to the right
+-- `rotate -7` - rotate 7 to the left
+-- https://stackoverflow.com/a/44309145
+rotate :: Int -> [a] -> [a]
+rotate n xs = take lxs . drop (n `mod` lxs) . cycle $ xs where lxs = length xs
 
-add23Marble :: Marble -> Player -> MarbleGame -> MarbleGame
-add23Marble newMarble playerAddingMarble (MarbleGame currentMarbleIndex marbles players) =
-  MarbleGame newMarbleIndex newMarbles newPlayers
-    where newMarbleIndex =
-            if sevenCounterClockwise < 0
-            then (length marbles) - (abs sevenCounterClockwise)
-            else sevenCounterClockwise
-          sevenCounterClockwise = currentMarbleIndex - 7
-          newMarbles =
-            (take newMarbleIndex marbles)
-            ++ (drop (newMarbleIndex + 1) marbles)
-          newPlayers =
-            map
-            (\player@(Player playerName playerScore) ->
-              if player == playerAddingMarble
-              then Player playerName ((marbles !! newMarbleIndex) + newMarble + playerScore)
-              else player
-            )
-            players
+addRegularMarble :: Marble -> PlayerName -> MarbleGame -> MarbleGame
+addRegularMarble newMarble _ (MarbleGame marbles players) =
+  MarbleGame newMarbles players
+    where
+      newMarbles = newMarble : rotate 2 marbles
+
+add23Marble :: Marble -> PlayerName -> MarbleGame -> MarbleGame
+add23Marble newMarble playerAddingMarble (MarbleGame marbles players) =
+  MarbleGame newMarbles newPlayers
+    where
+      rotatedMarbles = rotate (-7) marbles
+      newMarbles = tail $ rotatedMarbles
+      newPlayers = Map.insert playerAddingMarble newPlayer players
+      newPlayer = Player (head rotatedMarbles + newMarble + getPlayerScore(fromJust $ Map.lookup playerAddingMarble players))
+      fromJust (Just a) = a
+      fromJust Nothing  = undefined
 
 -- Initial state of the game
 createMarbleGameWithPlayers :: Int -> MarbleGame
 createMarbleGameWithPlayers n =
-  MarbleGame 0 [0] (take n $ map createNewPlayer [1..])
-    where createNewPlayer :: Int -> Player
-          createNewPlayer i = Player ("Player " ++ show i) 0
+  MarbleGame [0] (foldl addNewPlayer Map.empty (take n [1..]))
+    where addNewPlayer :: (Map.Map PlayerName Player) -> Int -> (Map.Map PlayerName Player)
+          addNewPlayer map i = Map.insert key value map
+            where key = "Player " ++ show i
+                  value = Player 0
 
 getNthMarbleGame :: MarbleGame -> Int -> MarbleGame
 getNthMarbleGame initialMarbleGame n = allMarbleGames initialMarbleGame !! n
 
--- (0, initialMarbleGame)
--- (1, addMarble 1 initialMarbleGame)
--- (2, addMarble 2 (addMarble 1 initialMarbleGame))
--- etc
 allMarbleGames :: MarbleGame -> [MarbleGame]
-allMarbleGames initialMarbleGame = map snd $ iterate addNextMarble (0, initialMarbleGame)
+allMarbleGames initialMarbleGame = fmap snd $ iterate addNextMarble (0, initialMarbleGame)
   where addNextMarble :: (Marble, MarbleGame) -> (Marble, MarbleGame)
         addNextMarble acc@(lastMarbleAdded, currentMarbleGame) =
           (
             lastMarbleAdded + 1,
-            addMarble (lastMarbleAdded + 1) (getNextPlayer acc) currentMarbleGame
+            addMarble (lastMarbleAdded + 1) (getNextPlayerName acc) currentMarbleGame
           )
         -- On the first marble, it's "Player 1" (players !! 0)
         -- On the second marble, it's "Player 2" (players !! 1),
         -- etc
-        getNextPlayer :: (Marble, MarbleGame) -> Player
-        getNextPlayer (lastMarbleAdded, (MarbleGame _ _ players)) =
-          players !! mod lastMarbleAdded (length players)
+        getNextPlayerName :: (Marble, MarbleGame) -> PlayerName
+        getNextPlayerName (lastMarbleAdded, MarbleGame _ players) =
+          "Player " ++ show (lastMarbleAdded `mod` (length players) + 1)
 
 getHighScore :: MarbleGame -> Int
-getHighScore (MarbleGame _ _ players) =
-  getScore $ maximumBy (
-    \(Player _ score1) (Player _ score2) ->
-      if score1 > score2 then GT
-      else if score2 < score1 then LT
-      else EQ
-  ) players
-    where getScore (Player _ s) = s
+getHighScore (MarbleGame _ players) = maximum $
+  Map.map (\(Player playerScore) -> playerScore) players
 
 -- 418, 71339
 -- pt 2: 418, 7133900
 main = do
   let marbleGame = createMarbleGameWithPlayers 418
-  putStrLn $ show $ getHighScore $ getNthMarbleGame marbleGame 71339
+  -- putStrLn $ show $ getHighScore $ getNthMarbleGame marbleGame 71339
+  putStrLn $ show $ getNthMarbleGame marbleGame 71339
+  --let marbleGame = createMarbleGameWithPlayers 30
+  --putStrLn $ show $ getHighScore $ getNthMarbleGame marbleGame 5807
