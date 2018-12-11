@@ -1,15 +1,11 @@
 const fs = require('fs');
+const readline = require('readline');
 
-// Takes the input string and makes a 2d grid. each element of the grid includes
-// its velocity.
-// grid[1][2] : second row, first column.
-function toGrid(inputString) {
+// Takes the input string and makes a list of points
+function parsePoints(inputString) {
   const lines = inputString.split("\n");
 
-  // find lowest and highest x and y positions in order to
-  // figure out how large of a grid to construct.
-  let lowX = 0, lowY = 0, highX = 0, highY = 0;
-  const allPoints = lines.filter(line => !!line).map(line => {
+  return lines.filter(line => !!line).map(line => {
     if (!line) {
       return;
     }
@@ -19,48 +15,56 @@ function toGrid(inputString) {
     const [posX, posY, velX, velY] =
       matches.slice(1).map(match => parseInt(match));
 
-    if (posX < lowX) { lowX = posX; }
-    if (posX > highX) { highX = posX; }
-    if (posY < lowY) { lowY = posY; }
-    if (posY > highY) { highY = posY; }
-
     return { posX, posY, velX, velY };
   });
+}
 
-  const sizeX = Math.abs(lowX) + highX + 1;
-  const sizeY = Math.abs(lowY) + highY + 1;
-  const grid = Array.from({ length: sizeY }, () => null).map(() =>
-    Array.from({ length: sizeX }, () => null)
+// Given a list of points, create a small printable grid.
+//
+// Each point in the grid corresponds to a (shrinkFactor x shrinkFactor)
+// square of the "real" grid (as specified by the point positions).
+function toGrid(shrinkFactor, points) {
+  const { lowX, lowY, highX, highY } = getHighAndLowValues(points);
+  const sizeX = Math.ceil((Math.abs(lowX) + highX + 1) / shrinkFactor);
+  const sizeY = Math.ceil((Math.abs(lowY) + highY + 1) / shrinkFactor);
+  const grid = Array.from({ length: sizeY }, () => false).map(() =>
+    Array.from({ length: sizeX }, () => false)
   );
 
-  allPoints.forEach(({ posX, posY, velX, velY }) => {
-    const y = posY + Math.abs(lowY);
-    const x = posX + Math.abs(lowX);
-    const newPoint = {velX, velY};
-    grid[y][x] = (grid[y][x] || []).concat(newPoint);
+  points.forEach(({ posX, posY, velX, velY }) => {
+    const y = Math.floor((posY + Math.abs(lowY)) / shrinkFactor);
+    const x = Math.floor((posX + Math.abs(lowX)) / shrinkFactor);
+    grid[y][x] = true;
   });
 
   return grid;
 }
 
-// Move grid n times
-function moveGrid(n, grid) {
-  if (n === 0) { return grid; }
-  const newGrid = Array.from({ length: grid.length }, () => null).map(() =>
-    Array.from({ length: grid[0].length }, () => null)
-  );
-  grid.forEach((col, colIndex) => {
-    col.forEach((points, rowIndex) => {
-      if (!points) { return; }
-
-      points.forEach(point => {
-        const y = colIndex + point.velY;
-        const x = rowIndex + point.velX;
-        newGrid[y][x] = (newGrid[y][x] || []).concat([point]);
-      });
-    });
+function getHighAndLowValues(points) {
+  let lowX = 0, lowY = 0, highX = 0, highY = 0;
+  points.forEach(({ posX, posY }) => {
+    if (posX < lowX) { lowX = posX };
+    if (posX > highX) { highX = posX };
+    if (posY < lowY) { lowY = posY };
+    if (posY > highY) { highY = posY };
   });
-  return moveGrid(n - 1, newGrid);
+  return { lowX, lowY, highX, highY };
+}
+
+// Move points n seconds
+function movePoints(n, points) {
+  let newPoints = points;
+  for (let i = 0; i < n; i++) {
+    newPoints = newPoints.map(point => (
+      {
+        posX: point.posX + point.velX,
+        posY: point.posY + point.velY,
+        velX: point.velX,
+        velY: point.velY
+      }
+    ));
+  }
+  return newPoints;
 }
 
 function toString(grid) {
@@ -74,38 +78,22 @@ function toString(grid) {
   return s;
 }
 
-const exampleInput = `position=< 9,  1> velocity=< 0,  2>
-position=< 7,  0> velocity=<-1,  0>
-position=< 3, -2> velocity=<-1,  1>
-position=< 6, 10> velocity=<-2, -1>
-position=< 2, -4> velocity=< 2,  2>
-position=<-6, 10> velocity=< 2, -2>
-position=< 1,  8> velocity=< 1, -1>
-position=< 1,  7> velocity=< 1,  0>
-position=<-3, 11> velocity=< 1, -2>
-position=< 7,  6> velocity=<-1, -1>
-position=<-2,  3> velocity=< 1,  0>
-position=<-4,  3> velocity=< 2,  0>
-position=<10, -3> velocity=<-1,  1>
-position=< 5, 11> velocity=< 1, -2>
-position=< 4,  7> velocity=< 0, -1>
-position=< 8, -2> velocity=< 0,  1>
-position=<15,  0> velocity=<-2,  0>
-position=< 1,  6> velocity=< 1,  0>
-position=< 8,  9> velocity=< 0, -1>
-position=< 3,  3> velocity=<-1,  1>
-position=< 0,  5> velocity=< 0, -1>
-position=<-2,  2> velocity=< 2,  0>
-position=< 5, -2> velocity=< 1,  2>
-position=< 1,  4> velocity=< 2,  1>
-position=<-2,  7> velocity=< 2, -2>
-position=< 3,  6> velocity=<-1, -1>
-position=< 5,  0> velocity=< 1,  0>
-position=<-6,  0> velocity=< 2,  0>
-position=< 5,  9> velocity=< 1, -2>
-position=<14,  7> velocity=<-2,  0>
-position=<-3,  6> velocity=< 2, -1>`;
+const points = parsePoints(fs.readFileSync('./input/day10', 'utf-8'));
 
-//console.log(toString(moveGrid(3, toGrid(exampleInput))));
-//console.log(toString(moveGrid(0, toGrid(fs.readFileSync('./input/day10', 'utf-8')))));
-const grid = toGrid(fs.readFileSync('./input/day10', 'utf-8'));
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// Message shows up at: 10079 moves, scaling factor of 1
+const askQuestion = () => {
+  rl.question("How many moves? ", moves => {
+    rl.question("Scaling factor? ", scale => {
+      console.log(toString(toGrid(scale, movePoints(moves, points))));
+
+      askQuestion();
+    });
+  });
+}
+
+askQuestion();
