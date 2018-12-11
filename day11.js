@@ -26,7 +26,33 @@ function calculatePowerLevel(serialNumber, colIndex, rowIndex) {
 // Returns the coordinates (1-indexed) of the top left cell whose 3x3 block
 // has the highest total power in the grid.
 function getMostPowerful(grid) {
-  return { x: 1, y : 1};
+  const mostPowerful = { x: null, y: null, value: 0 };
+
+  grid.forEach((col, colIndex) => {
+    col.forEach((powerLevel, rowIndex) => {
+      if (colIndex > 297 || rowIndex > 297) {
+        return;
+      }
+      const topLeft = powerLevel;
+      const top = grid[colIndex + 1][rowIndex];
+      const topRight = grid[colIndex + 2][rowIndex];
+      const left = grid[colIndex][rowIndex + 1];
+      const center = grid[colIndex + 1][rowIndex + 1];
+      const right = grid[colIndex + 2][rowIndex + 1];
+      const bottomLeft = grid[colIndex][rowIndex + 2];
+      const bottom = grid[colIndex + 1][rowIndex + 2];
+      const bottomRight = grid[colIndex + 2][rowIndex + 2];
+      const totalPowerLevel = topLeft + top + topRight + left + center + right
+        + bottomLeft + bottom + bottomRight;
+      if (totalPowerLevel > mostPowerful.value) {
+        mostPowerful.value = totalPowerLevel;
+        mostPowerful.x = rowIndex;
+        mostPowerful.y = colIndex;
+      }
+    });
+  });
+
+  return { x: mostPowerful.x + 1, y: mostPowerful.y + 1 };
 }
 
 // Testing power level
@@ -58,7 +84,7 @@ exampleCases2.forEach(({ serialNumber, expectedX, expectedY }) => {
   if (x !== expectedX || y !== expectedY) {
     console.log(
       `Grid ${serialNumber} was supposed to be most powerful at `
-      + `(${expectedX}, ${expectedY}) but had was most powerful `
+      + `(${expectedX}, ${expectedY}) but had its most powerful `
       + `at (${x},${y}) instead.`
     );
   } else {
@@ -66,3 +92,4 @@ exampleCases2.forEach(({ serialNumber, expectedX, expectedY }) => {
   }
 });
 
+console.log(getMostPowerful(generateGrid(5535)));
