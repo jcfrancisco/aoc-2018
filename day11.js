@@ -94,21 +94,25 @@ function getTotalPowerLevel(colIndex, rowIndex, grid, squareSize, cache) {
   if (squareSize === 1) {
     sum = grid[colIndex][rowIndex];
   } else if (squareSize % 2 !== 0) {
-    // If it's an odd square size, add the first row and the first column
-    // (not including the current square), add to current square, then
-    // recursively call on an even numbered square.
-    const firstRowAndColumnSums =
-      Array.from({ length: squareSize - 1 }, (_, i) => i)
-      .reduce(
-        (acc, i) => ({
-          rowSum: acc.rowSum + grid[colIndex][rowIndex + i + 1],
-          colSum: acc.colSum + grid[colIndex + i + 1][rowIndex]
-        }),
-        { rowSum: 0, colSum: 0 }
-      );
-    sum = grid[colIndex][rowIndex]
-      + firstRowAndColumnSums.rowSum + firstRowAndColumnSums.colSum
-      + getTotalPowerLevel(colIndex + 1, rowIndex + 1, grid, squareSize - 1, cache);
+    // If it's an odd square size, add the last row and the last column,
+    // and recursively call on current cell (with squareSize - 1).
+    const lastColIndex = squareSize + colIndex - 1;
+    const lastRowIndex = squareSize + rowIndex - 1;
+
+    let lastRowSum = 0;
+    for (let c = colIndex; c <= lastColIndex; c++) {
+      lastRowSum += grid[c][lastRowIndex];
+    }
+
+    let lastColSum = 0;
+    // Don't look at [lastColIndex][lastRowIndex] here, because
+    // that was already accounted for in the prior loop
+    //                      👇
+    for (let r = rowIndex; r < lastRowIndex; r++) {
+      lastColSum += grid[lastColIndex][r];
+    }
+
+    sum = lastColSum + lastRowSum + getTotalPowerLevel(colIndex, rowIndex, grid, squareSize - 1, cache);
   } else {
     // If it's an even square size, split into four equal squares and recurse!
     const halfSquareSize = squareSize / 2;
