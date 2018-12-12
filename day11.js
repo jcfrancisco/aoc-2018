@@ -32,10 +32,7 @@ function getMostPowerful(grid) {
     () =>
       Array.from(
         { length: GRID_SIZE },
-        () => Array.from(
-          { length: GRID_SIZE },
-          () => null
-        )
+        () => []
       )
   );
   let mostPowerful = { x: null, y: null, value: Number.MIN_SAFE_INTEGER, squareSize: null };
