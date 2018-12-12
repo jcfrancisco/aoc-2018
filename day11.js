@@ -1,9 +1,11 @@
+const GRID_SIZE = 300;
+
 function generateGrid(serialNumber) {
   return Array.from(
-    { length: 300 },
+    { length: GRID_SIZE },
     (_, colIndex) =>
       Array.from(
-        { length: 300 },
+        { length: GRID_SIZE },
         (_, rowIndex) => calculatePowerLevel(serialNumber, colIndex, rowIndex)
       )
   );
@@ -23,27 +25,52 @@ function calculatePowerLevel(serialNumber, colIndex, rowIndex) {
   return powerLevel;
 }
 
-// Returns the coordinates (1-indexed) of the top left cell whose 3x3 block
-// has the highest total power in the grid.
 function getMostPowerful(grid) {
-  const mostPowerful = { x: null, y: null, value: 0 };
+  // Cache[y][x][squareSize] = sum for [y][x] with squareSize - 1
+  const cache = Array.from(
+    { length: GRID_SIZE },
+    () =>
+      Array.from(
+        { length: GRID_SIZE },
+        () => Array.from(
+          { length: GRID_SIZE },
+          () => null
+        )
+      )
+  );
+  let mostPowerful = { x: null, y: null, value: Number.MIN_SAFE_INTEGER, squareSize: null };
+  Array.from({ length: 300 }, (_, i) => {
+    const squareSize = i + 1;
+    const mostPowerfulForSquareSize = getMostPowerfulForSquareSize(grid, squareSize, cache);
+    if (mostPowerfulForSquareSize.value > mostPowerful.value) {
+      Object.assign(mostPowerful, {
+        x: mostPowerfulForSquareSize.x,
+        y: mostPowerfulForSquareSize.y,
+        value: mostPowerfulForSquareSize.value,
+        squareSize
+      });
+    }
+  });
+  const { x, y, squareSize } = mostPowerful;
+  return { x, y, squareSize };
+}
+
+// Returns the coordinates (1-indexed) of the top left cell whose
+// squareSize x squareSize block has the highest total power in the grid.
+function getMostPowerfulForSquareSize(grid, squareSize, cache) {
+  const mostPowerful = { x: null, y: null, value: Number.MIN_SAFE_INTEGER };
 
   grid.forEach((col, colIndex) => {
     col.forEach((powerLevel, rowIndex) => {
-      if (colIndex > 297 || rowIndex > 297) {
+      if (
+        colIndex > (GRID_SIZE - squareSize)
+        || rowIndex > (GRID_SIZE - squareSize)
+      ) {
         return;
       }
-      const topLeft = powerLevel;
-      const top = grid[colIndex + 1][rowIndex];
-      const topRight = grid[colIndex + 2][rowIndex];
-      const left = grid[colIndex][rowIndex + 1];
-      const center = grid[colIndex + 1][rowIndex + 1];
-      const right = grid[colIndex + 2][rowIndex + 1];
-      const bottomLeft = grid[colIndex][rowIndex + 2];
-      const bottom = grid[colIndex + 1][rowIndex + 2];
-      const bottomRight = grid[colIndex + 2][rowIndex + 2];
-      const totalPowerLevel = topLeft + top + topRight + left + center + right
-        + bottomLeft + bottom + bottomRight;
+      const totalPowerLevel = getTotalPowerLevel(
+        colIndex, rowIndex, grid, squareSize, cache
+      );
       if (totalPowerLevel > mostPowerful.value) {
         mostPowerful.value = totalPowerLevel;
         mostPowerful.x = rowIndex;
@@ -52,16 +79,67 @@ function getMostPowerful(grid) {
     });
   });
 
-  return { x: mostPowerful.x + 1, y: mostPowerful.y + 1 };
+  const { x, y, value } = mostPowerful;
+  return { x: x + 1, y: y + 1, value };
+}
+
+/* Total power level for a particular grid item, with a given square size
+ *   a b c
+ *   d e f
+ *   g h i
+ */
+function getTotalPowerLevel(colIndex, rowIndex, grid, squareSize, cache) {
+  if (cache && cache[colIndex][rowIndex][squareSize - 1]) {
+    return cache[colIndex][rowIndex][squareSize - 1];
+  }
+  let sum;
+
+  if (squareSize === 1) {
+    sum = grid[colIndex][rowIndex];
+  } else if (squareSize % 2 !== 0) {
+    // If it's an odd square size, add the first row and the first column
+    // (not including the current square), add to current square, then
+    // recursively call on an even numbered square.
+    const firstRowAndColumnSums =
+      Array.from({ length: squareSize - 1 }, (_, i) => i)
+      .reduce(
+        (acc, i) => ({
+          rowSum: acc.rowSum + grid[colIndex][rowIndex + i + 1],
+          colSum: acc.colSum + grid[colIndex + i + 1][rowIndex]
+        }),
+        { rowSum: 0, colSum: 0 }
+      );
+    sum = grid[colIndex][rowIndex]
+      + firstRowAndColumnSums.rowSum + firstRowAndColumnSums.colSum
+      + getTotalPowerLevel(colIndex + 1, rowIndex + 1, grid, squareSize - 1, cache);
+  } else {
+    // If it's an even square size, split into four equal squares and recurse!
+    const halfSquareSize = squareSize / 2;
+    sum = getTotalPowerLevel(colIndex, rowIndex, grid, halfSquareSize, cache)
+      + getTotalPowerLevel(
+        colIndex + halfSquareSize, rowIndex, grid, halfSquareSize, cache
+      )
+      + getTotalPowerLevel(
+        colIndex, rowIndex + halfSquareSize, grid, halfSquareSize, cache
+      )
+      + getTotalPowerLevel(
+        colIndex + halfSquareSize, rowIndex + halfSquareSize, grid, halfSquareSize, cache
+      );
+  }
+
+  if (cache) {
+    cache[colIndex][rowIndex][squareSize - 1] = sum;
+  }
+  return sum;
 }
 
 // Testing power level
 const exampleCases = [
-  { serialNumber: 57, x: 122, y: 79, expectedPowerLevel: -5 },
-  { serialNumber: 39, x: 217, y: 196, expectedPowerLevel: 0 },
-  { serialNumber: 71, x: 101, y: 153, expectedPowerLevel: 4 },
+  { serialNumber: 57, squareSize: 3, x: 122, y: 79, expectedPowerLevel: -5 },
+  { serialNumber: 39, squareSize: 3, x: 217, y: 196, expectedPowerLevel: 0 },
+  { serialNumber: 71, squareSize: 3, x: 101, y: 153, expectedPowerLevel: 4 },
 ];
-exampleCases.forEach(({ serialNumber, x, y, expectedPowerLevel }) => {
+exampleCases.forEach(({ serialNumber, squareSize, x, y, expectedPowerLevel }) => {
   const powerLevel = generateGrid(serialNumber)[y - 1][x - 1];
   if (powerLevel !== expectedPowerLevel) {
     console.log(
@@ -75,12 +153,12 @@ exampleCases.forEach(({ serialNumber, x, y, expectedPowerLevel }) => {
 
 // Testing total power
 const exampleCases2 = [
-  { serialNumber: 18, expectedX: 33, expectedY: 45 },
-  { serialNumber: 42, expectedX: 21, expectedY: 61 }
+  { serialNumber: 18, squareSize: 3, expectedX: 33, expectedY: 45 },
+  { serialNumber: 42, squareSize: 3, expectedX: 21, expectedY: 61 }
 ];
 
-exampleCases2.forEach(({ serialNumber, expectedX, expectedY }) => {
-  const { x, y } = getMostPowerful(generateGrid(serialNumber));
+exampleCases2.forEach(({ serialNumber, squareSize, expectedX, expectedY }) => {
+  const { x, y } = getMostPowerfulForSquareSize(generateGrid(serialNumber), squareSize);
   if (x !== expectedX || y !== expectedY) {
     console.log(
       `Grid ${serialNumber} was supposed to be most powerful at `
@@ -92,4 +170,25 @@ exampleCases2.forEach(({ serialNumber, expectedX, expectedY }) => {
   }
 });
 
-console.log(getMostPowerful(generateGrid(5535)));
+ Testing square size
+
+const exampleCases3 = [
+  { serialNumber: 18, expectedX: 90, expectedY: 269, expectedSquareSize: 16 },
+  { serialNumber: 42, expectedX: 232, expectedY: 251, expectedSquareSize: 12 }
+];
+
+exampleCases3.forEach(({ serialNumber, expectedX, expectedY, expectedSquareSize }) => {
+  const { x, y, squareSize } = getMostPowerful(generateGrid(serialNumber));
+  if (x !== expectedX || y !== expectedY || squareSize !== expectedSquareSize) {
+    console.log(
+      `Grid ${serialNumber} was supposed to be most powerful with square size `
+      + `${expectedSquareSize}, at point (${expectedX}, ${expectedY}). Instead,`
+      + ` its square size was ${squareSize} and most powerful was at `
+      + `(${x},${y}) instead.`
+    );
+  } else {
+    console.log(`Grid ${serialNumber} had the correct most powerful cell and square size.`);
+  }
+});
+
+console.log(JSON.stringify(getMostPowerful(generateGrid(5535))));
