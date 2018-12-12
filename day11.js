@@ -170,7 +170,7 @@ exampleCases2.forEach(({ serialNumber, squareSize, expectedX, expectedY }) => {
   }
 });
 
- Testing square size
+// Testing square size
 
 const exampleCases3 = [
   { serialNumber: 18, expectedX: 90, expectedY: 269, expectedSquareSize: 16 },
