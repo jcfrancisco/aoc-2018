@@ -71,11 +71,11 @@ const getIsPlanted = (realIndex, leftPots, rightPots, rules) => {
   if (realIndex < -2) {
     const leftPotIndex = (realIndex * -1) - 1;
     return rules(
-      leftPots[leftPotIndex - 2],
-      leftPots[leftPotIndex - 1],
-      leftPots[leftPotIndex],
+      leftPots[leftPotIndex + 2],
       leftPots[leftPotIndex + 1],
-      leftPots[leftPotIndex + 2]
+      leftPots[leftPotIndex],
+      leftPots[leftPotIndex - 1],
+      leftPots[leftPotIndex - 2]
     );
   }
   if (realIndex === -2) {
@@ -183,13 +183,14 @@ const partTwo = () => {
   const after5000 = advanceGenerations(rules)(1000)(after4000);
   console.log("After 5000, sum is ", countPlantPots(after5000));
 
-  console.log("Get remaining sum for 3000", getRemainingSum(3000));
-  console.log("Get remaining sum for 4000", getRemainingSum(4000));
-  console.log("Get remaining sum for 5000", getRemainingSum(5000));
+  console.log("Testing algorithm for 3000", getRemainingSum(3000));
+  console.log("Testing algorithm for 4000", getRemainingSum(4000));
+  console.log("Testing algorithm for 5000", getRemainingSum(5000));
   // Pattern noticed:
   // after 2000 generations, its 116,454.
   // After 3000 generations, its 173,454.
-  // In other words, every 1000th generation adds 56,000
+  // In other words, every 1000th generation adds 57,000
+  console.log("Result for 50,000,000,000", getRemainingSum(50000000000));
 }
 
 partTwo();
@@ -199,27 +200,28 @@ function getRemainingSum(n) {
   return ((n - 2000) / 1000 * 57000) + 116454;
 }
 
-// const leftPots = [];
-// const rightPots = parseInitialState('#..#.#..##......###...###');
-// const rules = parseRules([
-//   '...## => #',
-//   '..#.. => #',
-//   '.#... => #',
-//   '.#.#. => #',
-//   '.#.## => #',
-//   '.##.. => #',
-//   '.#### => #',
-//   '#.#.# => #',
-//   '#.### => #',
-//   '##.#. => #',
-//   '##.## => #',
-//   '###.. => #',
-//   '###.# => #',
-//   '####. => #'
-// ]);
-//
+ const leftPots = [];
+ const rightPots = parseInitialState('#..#.#..##......###...###');
+ const rules = parseRules([
+   '...## => #',
+   '..#.. => #',
+   '.#... => #',
+   '.#.#. => #',
+   '.#.## => #',
+   '.##.. => #',
+   '.#### => #',
+   '#.#.# => #',
+   '#.### => #',
+   '##.#. => #',
+   '##.## => #',
+   '###.. => #',
+   '###.# => #',
+   '####. => #'
+ ]);
+
 // const newPots = advanceGenerations(rules)(20)({leftPots, rightPots});
 // console.log("Left pots: ");
 // console.log(newPots.leftPots.map(toString).join(''));
 // console.log("Right pots: ");
 // console.log(newPots.rightPots.map(toString).join(''));
+// console.log(countPlantPots(newPots));
